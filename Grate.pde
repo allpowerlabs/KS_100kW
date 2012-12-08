@@ -41,7 +41,7 @@ void DoGrate() { // call once per second
     grate_state = GRATE_OFF;
     break;
   case GRATE_SHAKE_PRATIO:
-    if (engine_state == ENGINE_ON || engine_state == ENGINE_STARTING || P_reactorLevel != OFF) { //shake only if reactor is on and/or engine is on
+    if (engine_state == ENGINE_ON || P_reactorLevel != OFF) { //shake only if reactor is on and/or engine is on
       //condition above will leave grate_val in the last state until conditions are met (not continuing to cycle)
       if (grate_val >= GRATE_SHAKE_CROSS) { // not time to shake
         if (pRatioReactorLevel == PR_LOW) {
@@ -83,7 +83,7 @@ void LoadGrate() {
   maxg = EEPROM.read(19)*3;
   gon= EEPROM.read(21);
   if (check == 128) { //check to see if grate has been set
-    Serial.println("#Loading grate from EEPROM");
+    //Message:Serial.println("#Loading grate from EEPROM");
     grate_min_interval = ming;
     grate_max_interval = maxg;
     grate_on_interval = gon;
@@ -93,7 +93,7 @@ void LoadGrate() {
 }
 
 void WriteGrate() {
-  Serial.println("#Writing grate to EEPROM");
+  //Message:Serial.println("#Writing grate to EEPROM");
   EEPROM.write(16,128);
   EEPROM.write(17,constrain(grate_min_interval/3,0,255));
   EEPROM.write(19,constrain(grate_max_interval/3,0,255));
@@ -118,7 +118,7 @@ void grate_shake(){  //Ash scraper and grate shaker solenoid - 3 thumps of 100mS
       }
       grate_state = GRATE_ON;
       grate_on = millis();
-      if (shake_num < 2){
+      if (shake_num < 1){
         next_shake = next_shake + 500;
         shake_num++;
       } else{
