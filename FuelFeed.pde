@@ -30,15 +30,15 @@ void TransitionHopperAgitator(int newstate){
   switch (newstate){
     case HOPPER_AGITATOR_OFF:
       hopperAgitatorOff();
-      Serial.println("#Hopper Agitator: Off");
+      //Message:Serial.println("#Hopper Agitator: Off");
       break;
     case HOPPER_AGITATOR_ON_PULSE:
       hopperAgitatorOn();
-      Serial.println("#Hopper Agitator: On Pulse");
+      //Message:Serial.println("#Hopper Agitator: On Pulse");
       break;
     case HOPPER_AGITATOR_ON_PAUSE:
       hopperAgitatorOff();
-      Serial.println("#Hopper Agitator: On Pause");
+      //Message:Serial.println("#Hopper Agitator: On Pause");
       break;
   }
   hopper_agitator_state = newstate;
@@ -263,15 +263,15 @@ void TransitionConveyor(int new_state) {
   conveyor_state_entered = millis();
   switch (new_state){
     case CONVEYOR_ON:
-      Serial.println("Conveyor: On");
+      //Message:Serial.println("Conveyor: On");
       conveyorForward();
       break;
     case CONVEYOR_REVERSING:
-      Serial.println("Conveyor: Reversing");
+      //Message:Serial.println("Conveyor: Reversing");
       conveyorStop();
       break;  
     case CONVEYOR_OFF:
-      Serial.println("Conveyor: Off");
+      //Message:Serial.println("Conveyor: Off");
       conveyorStop();
       break;
   }
