@@ -3,7 +3,7 @@ void DoDisplay() {
   char buf[20];
   char choice[5] = "    ";
   char menu1[] = "NEXT  ADV   +    -  ";
-  if (millis() % 2000 > 1000) {
+  if (millis() % 4000 > 2000) {
     disp_alt = false;
   } 
   else {
@@ -52,20 +52,27 @@ void DoDisplay() {
       }
       Disp_PutStr(buf);
       Disp_RC(0, 11);
-      sprintf(buf, "Pcomb%4i", Press[P_COMB] / 25);
+      if (disp_alt) {
+        sprintf(buf, "Pcomb%4i", Press[P_COMB] / 25);
+      } else {
+        sprintf(buf, "Log# %4i", data_log_num);
+      }      
       Disp_PutStr(buf);
     }
     //Row 1
     Disp_RC(1, 0);
     if (disp_alt) {
       sprintf(buf, "Tred1%4i  ", Temp_Data[T_RED1]);
-    } 
-    else {
+    } else {
       sprintf(buf, "Tred1%s", T_red1Level[TempLevelName]);
     }
     Disp_PutStr(buf);
     Disp_RC(1, 11);
-    sprintf(buf, "Preac%4i", Press[P_REACTOR] / 25);
+    if (disp_alt) {
+      sprintf(buf, "Preac%4i", Press[P_REACTOR] / 25);
+    } else {
+      sprintf(buf, "Time %4i", millis()/1000);
+    }
     Disp_PutStr(buf);
 
     //Row 2
@@ -73,17 +80,11 @@ void DoDisplay() {
     Disp_PutStr("CARBAFGI   ");  //Conveyor, Rotary Valve, Boot, Auger, Fuel Switch, Grate, Ignitor - Header
     
     Disp_RC(2, 11);
-    if (true) {
+    if (disp_alt) {
       sprintf(buf, "Pfilt%4i", Press[P_FILTER] / 25);
     } 
     else {
-      //TO DO: Implement filter warning
-      if (pRatioFilterHigh) {
-        sprintf(buf, "Pfilt Bad");
-      } 
-      else {
-        sprintf(buf, "PfiltGood");
-      }
+      sprintf(buf, "Fuel %4i", int(ceil(mixture_input*100)));
     }
     Disp_PutStr(buf);
 
@@ -116,40 +117,43 @@ void DoDisplay() {
       GetFuelFeedStates(); 
       display_string.toCharArray(buf, 11);
       Disp_PutStr(buf);
-    }
-    
-    Disp_RC(3,11);
-    if (P_reactorLevel != OFF) {
-      //the value only means anything if the pressures are high enough, otherwise it is just noise
-      sprintf(buf, "Pratio%3i", int(pRatioReactor*100)); //pressure ratio
-      Disp_PutStr(buf);
     } 
-    else {
-      Disp_PutStr("Pratio --");
+    Disp_RC(3,11);
+    if (disp_alt) {
+      if (P_reactorLevel != OFF) {
+        //the value only means anything if the pressures are high enough, otherwise it is just noise
+        sprintf(buf, "Pratio%3i", int(pRatioReactor*100)); //pressure ratio
+        Disp_PutStr(buf);
+      } 
+      else {
+        Disp_PutStr("Pratio --");
+      }
+    } else {
+      sprintf(buf, "FuelS%4i", int(ceil(mixture_setpoint*100.0)));
+      Disp_PutStr(buf);
     }
     break;
-    
   case DISPLAY_ENGINE:
-    Disp_CursOff();
-    Disp_RC(0,0);
-//#if T_ENG_COOLANT != ABSENT
-//    sprintf(buf, "Tcool%4i  ", Temp_Data[T_ENG_COOLANT]);
-//#else
-      sprintf(buf, "Tcool  NA  ");
-//#endif
-    Disp_PutStr(buf);
-    Disp_RC(0,11); 
-    Disp_PutStr("           ");
-    //Row 1
-    Disp_RC(1,0); 
-    Disp_PutStr("                    ");
-    //Row 2
-    Disp_RC(2,0); 
-    Disp_PutStr("                    ");
-    //Row 3
-    Disp_RC(3,0);
-    Disp_PutStr("                    ");
-    Disp_CursOff();
+//    Disp_CursOff();
+//    Disp_RC(0,0);
+////#if T_ENG_COOLANT != ABSENT
+////    sprintf(buf, "Tcool%4i  ", Temp_Data[T_ENG_COOLANT]);
+////#else
+//      sprintf(buf, "Tcool  NA  ");
+////#endif
+//    Disp_PutStr(buf);
+//    Disp_RC(0,11); 
+//    Disp_PutStr("           ");
+//    //Row 1
+//    Disp_RC(1,0); 
+//    Disp_PutStr("                    ");
+//    //Row 2
+//    Disp_RC(2,0); 
+//    Disp_PutStr("                    ");
+//    //Row 3
+//    Disp_RC(3,0);
+//    Disp_PutStr("                    ");
+//    Disp_CursOff();
     break;
   case DISPLAY_TESTING:
     Disp_CursOff();
@@ -197,72 +201,76 @@ void DoDisplay() {
       Disp_PutStr("NEXT                ");
     }
     break;
-  case DISPLAY_FUEL_PID:
+  case DISPLAY_MIXTURE:
     double P,I;
     item_count = 4;
-    P=FUEL_PID.GetP_Param();
-    I=FUEL_PID.GetI_Param();
+    P=mixture.GetP_Param();
+    I=mixture.GetI_Param();
     Disp_RC(0,0);
-    sprintf(buf, "FuelSet%3i  ", int(ceil(FUEL_PID_setpoint*100.0)));
+    sprintf(buf, "FuelSet%3i  ", int(ceil(mixture_setpoint*100.0)));
     Disp_PutStr(buf);
     Disp_RC(0,11);
-    sprintf(buf, "Fuel%3i", int(FUEL_PID_input*100.0));
+    sprintf(buf, "Fuel   %3i", int(ceil(mixture_input*100.0)));
     Disp_PutStr(buf);
     //Row 1
     Disp_RC(1,0);
-    sprintf(buf, "P     %3i  ", int(ceil(FUEL_PID.GetP_Param()*100.0)));
+    sprintf(buf, "P     %3i  ", int(ceil(mixture.GetP_Param()*100.0)));
     Disp_PutStr(buf);
     Disp_RC(1,11);
-    sprintf(buf, "I     %3i", int(ceil(FUEL_PID.GetI_Param()*100.0)));
+    sprintf(buf, "I     %3i", int(ceil(mixture.GetI_Param()*100.0)));
     Disp_PutStr(buf);
     Disp_RC(2,0);
-    Disp_PutStr("                    ");
+    sprintf(buf, "Out  %3i  ", int(ceil(mixture_output*100)));
+    Disp_PutStr(buf);
+    Disp_RC(2,11);
+    sprintf(buf, "         ");
+    Disp_PutStr(buf);
     switch (cur_item) {
-    case 1: // FUEL_PID setpoint
+    case 1: // mixture setpoint
       if (key == 2) {
-        FUEL_PID_setpoint += 0.01;
-        WriteFUEL_PID();
+        //mixture_setpoint += 0.2;
+        //WriteMixture();
       }
       if (key == 3) {
-        FUEL_PID_setpoint -= 0.01;
-        WriteFUEL_PID();
+        //mixture_setpoint -= 0.2;
+        //WriteMixture();
       }          
       Disp_RC(0,0);
       Disp_CursOn();
       Disp_RC(3,0);
-      Disp_PutStr("NEXT  ADV   +    -  ");
+      Disp_PutStr("NEXT  ADV           ");
       break;
-    case 2: //FUEL_PID reading
+    case 2: //mixture reading
       Disp_RC(3,0);
       Disp_PutStr("NEXT  ADV           ");
       Disp_RC(0,11);
       Disp_CursOn();
       break;
-    case 3: //FUEL_PID P
+    case 3: //mixture P
       if (key == 2) {
         P += 0.01;
-        WriteFUEL_PID();
+        WriteMixture();
       }
       if (key == 3) {
         P -= 0.01;
-        WriteFUEL_PID();
+        WriteMixture();
       }
-      FUEL_PID.SetTunings(P,I,0);
+      mixture.SetTunings(P,I,0);
       Disp_RC(3,0);
       Disp_PutStr("NEXT  ADV   +    -  ");
       Disp_RC(1,0);
       Disp_CursOn();
       break;
-    case 4: //FUEL_PID I
+    case 4: //mixture I
       if (key == 2) {
         I += 0.1;
-        WriteFUEL_PID();
+        WriteMixture();
       }
       if (key == 3) {
         I -= 0.1;
-        WriteFUEL_PID();
+        WriteMixture();
       }
-      FUEL_PID.SetTunings(P,I,0);
+      mixture.SetTunings(P,I,0);
       Disp_RC(3,0);
       Disp_PutStr("NEXT  ADV   +    -  ");
       Disp_RC(1,11);
@@ -372,7 +380,6 @@ void DoDisplay() {
       vmin = max(0,grate_on_interval);
       vmax = grate_max_interval;
       if (key == 2) {
-
         grate_min_interval += 3;
         grate_min_interval = constrain(grate_min_interval,vmin,vmax);
         CalculateGrate();
@@ -583,7 +590,7 @@ void TransitionDisplay(int new_state) {
     break;
   case DISPLAY_ENGINE:
     break;
-  case DISPLAY_FUEL_PID:
+  case DISPLAY_MIXTURE:
     cur_item = 1;
     break;
   case DISPLAY_PRESSURE_PID:
@@ -618,12 +625,12 @@ void DoKeyInput() {
       TransitionDisplay(DISPLAY_REACTOR);
       break;
     case DISPLAY_REACTOR:
-      TransitionDisplay(DISPLAY_FUEL_PID);
+      TransitionDisplay(DISPLAY_MIXTURE);
       break;
     case DISPLAY_ENGINE:
       TransitionDisplay(DISPLAY_REACTOR);
       break;
-    case DISPLAY_FUEL_PID:
+    case DISPLAY_MIXTURE:
       TransitionDisplay(DISPLAY_PRESSURE_PID);
       break;
     case DISPLAY_PRESSURE_PID:
@@ -657,10 +664,16 @@ void DoKeyInput() {
     key = -1; //key caught
   }
   if (key == 1) {
+    if (display_state == DISPLAY_CONFIG and config_changed == true){
+      saveConfig(cur_item, config_var);
+      update_config_var(cur_item);
+      config_changed = false;
+    }
     cur_item++;
+    //Serial.println("cur_item++");
     if (cur_item>item_count) {
       cur_item = 1;
-    }
+    } 
     key = -1; //key caught
   }
 }
@@ -818,7 +831,7 @@ void update_config_var(int var_num){
       break;
     case 4:
       PID_Control = getConfig(4);
-      InitFUEL_PID();
+      InitMixture();
       break;
   }
 }
