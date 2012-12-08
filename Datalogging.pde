@@ -7,24 +7,24 @@ void LogTime(boolean header = false) {
   }
 }
 
-//void LogPID(boolean header = false) {
-//  if (header) {
-//    PrintColumn("Lambda_In");
-//    PrintColumn("Lambda_Out");
-//    PrintColumn("Lambda_Setpoint");
-//    PrintColumn("Lambda_P");
-//    PrintColumn("Lambda_I");
-//    PrintColumn("Lambda_D");
-//  } 
-//  else {
-//    PrintColumn(lambda_input);
-//    PrintColumn(lambda_output);
-//    PrintColumn(lambda_setpoint);
-//    PrintColumn(lambda_PID.GetP_Param());
-//    PrintColumn(lambda_PID.GetI_Param());
-//    PrintColumn(lambda_PID.GetD_Param());
-//  }
-//}
+void LogPID(boolean header = false) {
+  if (header) {
+    PrintColumn("Mixture_In");
+    PrintColumn("Mixture_Out");
+    PrintColumn("Mixture_Setpoint");
+    PrintColumn("Mixture_P");
+    PrintColumn("Mixture_I");
+    PrintColumn("Mixture_D");
+  } 
+  else {
+    PrintColumn(mixture_input);
+    PrintColumn(mixture_output);
+    PrintColumn(mixture_setpoint);
+    PrintColumn(mixture.GetP_Param());
+    PrintColumn(mixture.GetI_Param());
+    PrintColumn(mixture.GetD_Param());
+  }
+}
 
 void LogAnalogInputs(boolean header = false) {
   if (header) {
@@ -247,9 +247,6 @@ void LogEngine(boolean header=false) {
     if (engine_state == ENGINE_ON) {
       PrintColumn("On");
     }
-    if (engine_state == ENGINE_STARTING) {
-      PrintColumn("Starting");
-    }
   }
 }
 
@@ -344,33 +341,55 @@ void LogFuelFeed(boolean header = false){
   }
 }
 
+void LogEngineParams(boolean header = false) {
+    if (header) {
+      PrintColumn("FuelRate");
+      PrintColumn("EngineSpeed");
+      PrintColumn("EngineTorque");
+      PrintColumn("TotalFuelConsumption");
+      PrintColumn("EngineBoost");
+      PrintColumn("CoolantTemperature");
+      PrintColumn("TotalEngineHours");
+  } else {
+    PrintColumn(fuel_consumption);
+    PrintColumn(engine_speed);
+    PrintColumn(engine_torque);
+    PrintColumn(total_fuel_consumption);
+    PrintColumn(engine_boost);
+    PrintColumn(coolant_temperature);
+    PrintColumn(total_engine_hours);
+  }
+}
+
 void PrintColumn(String str) {
   data_buffer += str;
   data_buffer += ", ";
-//  Serial.print(str);
-//  Serial.print(", ");  
+  //Serial.print(str);
+  //Serial.print(", ");  
 }
 
 void PrintColumn(float str) {
   dtostrf(str, 5, 3, float_buf);
   data_buffer += float_buf;
   data_buffer += ", ";
-//  Serial.print(str);
-//  Serial.print(", ");  
+  //Serial.print(str);
+  //Serial.print(", ");  
 }
 
 void PrintColumnInt(int str) {
   data_buffer += str;
   data_buffer += ", ";
-//  Serial.print(str);
-//  Serial.print(", ");
+  //Serial.print(str);
+  //Serial.print(", ");
 }
+
+
 
 void DoDatalogging() {
   data_buffer="";
   boolean header = false;
   Serial.begin(57600); //reset serial?
-  if (lineCount == 0) {
+  if (lineCount == 0) {  
     header = true;
   }
   LogTime(header);
@@ -380,12 +399,14 @@ void DoDatalogging() {
   LogGrate(header); 
   LogFilter(header); 
   LogReactor(header);
-  LogEngine(header);  //update when we know more from Cummins
+  //LogEngine(header);  //update when we know more from Cummins
   LogFuelFeed(header);
+  LogPID(header);
+  LogEngineParams(header);
   Serial.println(data_buffer);
-//  if (sd_loaded){
-//    DatalogSD(data_buffer, sd_data_file_name);
-//  }
+  if (sd_loaded){
+    DatalogSD(data_buffer, sd_data_file_name);
+  }
   lineCount++;
 }
 
