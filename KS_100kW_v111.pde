@@ -16,7 +16,7 @@
 #include <ui.h>             // part of KSlibs, menu
 #include <util.h>           // part of KSlibs, utility functions, GCU_Setup
 #include <avr/io.h>         // advanced: provides port definitions for the microcontroller (ATmega1280, http://www.atmel.com/dyn/resources/prod_documents/doc2549.PDF)   
-//#include <SD.h>
+#include <SD.h>
 
 //#include <Canbus.h>
 //#include <defaults.h>
@@ -27,7 +27,7 @@
 //constant definitions
 #define ABSENT -500
 
-#define CODE_VERSION "100kW v1.01"
+#define CODE_VERSION "100kW v1.11"
 
 // Analog Input Mapping
 #define ANA_EO2 ANA0
@@ -91,7 +91,7 @@ Servo Servo_Throttle;
 #define GRATE_SHAKE_POT_INTERVAL 3
 unsigned long pot_period;
 unsigned long ash_on = 0;
-#define ASH_SCRAPER_PERIOD 1000*3
+#define ASH_SCRAPER_PERIOD 1000*16
 
 
 // Grate Motor States
@@ -113,9 +113,7 @@ unsigned long ash_on = 0;
 //Engine States
 #define ENGINE_OFF 0
 #define ENGINE_ON 1
-#define ENGINE_STARTING 2
-#define ENGINE_GOV_TUNING 3
-
+#define ENGINE_OVERSPEED 2
 
 //Flare States
 #define FLARE_OFF 0
@@ -124,16 +122,19 @@ unsigned long ash_on = 0;
 #define FLARE_HIGH 3
 #define FLARE_MAX 4
 
-//FUEL_PID States
-#define FUEL_POT_CONTROL 4
-#define FUEL_P_COMB 5
+//Mixture States
+#define MIXTURE_POT_CONTROL 0
+#define MIXTURE_P_COMB 1
+#define MIXTURE_RATE_BASED 2
+#define MIXTURE_OVERSPEED 3
+#define MIXTURE_OPEN 4
 
 //Display States
 #define DISPLAY_SPLASH 0
 #define DISPLAY_REACTOR 1
 #define DISPLAY_ENGINE 2
 #define DISPLAY_TEST 3
-#define DISPLAY_FUEL_PID 4
+#define DISPLAY_MIXTURE 4
 #define DISPLAY_PRESSURE_PID 5
 #define DISPLAY_GRATE 6
 #define DISPLAY_TESTING 7
@@ -180,6 +181,7 @@ unsigned long testing_state_entered = 0;
 static char *TestingStateName[] = { "Off","FET0","FET1","FET2","FET3","FET4","FET5","FET6","FET7","ANA_EO2","ANA_FO2","ANA_Fuel_Switch","ANA_POT1","ANA_POT2"};
 // Datalogging variables
 int lineCount = 0;
+int data_log_num;
 
 // Grate turning variables
 int grateMode = GRATE_SHAKE_POT_INTERVAL; //set default starting state
@@ -197,7 +199,7 @@ unsigned long next_shake;
 unsigned long grate_on;
 unsigned long grate_shake_start;
 int shake_num;
-int PULSE=100;
+int PULSE=4000;
 
 // Reactor pressure ratio
 float pRatioReactor;
@@ -314,27 +316,35 @@ String pressure_state_name;
 int pressure_state;
 unsigned long pressure_state_entered;
 
+//Engine Parameters
+double fuel_consumption;
+double engine_speed;
+double engine_torque;
+double total_fuel_consumption;
+double engine_boost;
+int coolant_temperature;
+double total_engine_hours;
+
 // Fuel PID variables
-double fuel_input;
 double premix_valve_open = 133; 
 double premix_valve_closed = 68;
 double premix_valve_max = 1.0;  //minimum of range for closed loop operation (percent open)
 double premix_valve_min = 0.00; //maximum of range for closed loop operation (percent open)
 double premix_valve_center = 0.00; //initial value when entering closed loop operation (percent open)
-double FUEL_PID_setpoint;
-double FUEL_PID_input;
-double FUEL_PID_output;
-double FUEL_PID_value;
-double FUEL_PID_setpoint_mode[1] = {1.05};
-double FUEL_PID_P[1] = {0.13}; //Adjust P_Param to get more aggressive or conservative control, change sign if moving in the wrong direction
-double FUEL_PID_I[1] = {1.0}; //Make I_Param about the same as your manual response time (in Seconds)/4 
-double FUEL_PID_D[1] = {0.0}; //Unless you know what it's for, don't use D
-PID FUEL_PID(&FUEL_PID_input, &FUEL_PID_output, &FUEL_PID_setpoint,FUEL_PID_P[0],FUEL_PID_I[0],FUEL_PID_D[0]);
+double mixture_setpoint;
+double mixture_input;
+double mixture_output;
+double mixture_value;
+double mixture_setpoint_mode[1] = {1.05};
+double mixture_P[1] = {0.13}; //Adjust P_Param to get more aggressive or conservative control, change sign if moving in the wrong direction
+double mixture_I[1] = {1.0}; //Make I_Param about the same as your manual response time (in Seconds)/4 
+double mixture_D[1] = {0.0}; //Unless you know what it's for, don't use D
+PID mixture(&mixture_input, &mixture_output, &mixture_setpoint,mixture_P[0],mixture_I[0],mixture_D[0]);
 unsigned long lamba_updated_time;
-boolean write_FUEL_PID = false;
-String FUEL_PID_state_name;
-int FUEL_PID_state;
-unsigned long FUEL_PID_state_entered;
+boolean write_mixture = false;
+String mixture_state_name;
+int mixture_state;
+unsigned long mixture_state_entered;
 
 ////Governor
 //double governor_setpoint;
@@ -460,6 +470,8 @@ int pressureRatioAccumulator = 0;
 #define ALARM_O2_NO_SIG 9
 #define ALARM_BOOT_EMPTY_LONG 10
 #define ALARM_BOOT_UNKNOWN_STATE 11
+#define ALARM_CAN_ERROR 12
+#define ALARM_OVERSPEED 13
 char* display_alarm[] = {
   "No alarm            ",
   "Fuel demand on long ",
@@ -472,26 +484,106 @@ char* display_alarm[] = {
   "Check Oil Pressure ",
   "No O2 Sensor Signal",
   "Auger boot empty   ",
-  "Auger boot unknown "
+  "Auger boot unknown ",
+  "CANbus error       ",
+  "Engine Overspeed   "
 }; //20 char message for 4x20 display
 
 //// SD Card
-//boolean sd_loaded;
-//Sd2Card sd_card;
-//SdVolume sd_volume;
-//SdFile sd_root;
-//SdFile sd_file;
-//char sd_data_file_name[] = "datalog1.txt";     //Create an array that contains the name of our datalog file, updated upon 
-//char sd_in_char=0;
-//int sd_index=0;  
+boolean sd_loaded;
+Sd2Card sd_card;
+SdVolume sd_volume;
+SdFile sd_root;
+SdFile sd_file;
+char sd_data_file_name[] = "datalog1.txt";     //Create an array that contains the name of our datalog file, updated upon 
+char sd_in_char=0;
+int sd_index=0;  
 
 //Datalogging Buffer
 String data_buffer = "";
 char float_buf[15] = "";
 
+char* OBDPGNHex[] = {
+  "B3 FE 00", //PGN_FUEL - 1 line response
+  "04 F0 00", //PGN_SPEED - streams out
+  "EE FE 00", //PGN_TEMP -  1 line response
+  "E5 FE 00", //PGN_HOURS - 1 line response
+  "F5 FE 00", //PGN_AMBIENT - 2 line response (lines the same)
+  "F6 FE 00", //PGN_EXHAUST - 2 line response (lines the same)
+  "E9 FE 00", //PGN_FUEL_ACCUM - 1 line response
+  "F2 FE 00", //PGN_FUEL_ECON - stream, 0.1s
+  "6C FE 00", //PGN_TACH - ?
+  "04 F0 00", //PGN_EEC1 - ?
+  };
+
+//Data from Charles Vessely (Cummins), cummins-J1939.pdf, and http://www.ddcsn.com/cps/rde/xbcr/ddcsn/ch6_mbe_ec_v13.pdf
+
+//PGN 65203 / 00FEB3 - Fuel Information (Liquid)
+//Trip Fuel Rate trip - bytes 5 & 6 [.05 L/hour]
+#define PGN_FUEL 0 
+
+// PGN 61444 / 00F004 - Electronic Engine Controller #1
+// Engine Speed - bytes 4 & 5 [0.125 rpm/bit]
+// Percent Engine Torque - byte 3 [1 percent/bit?]
+#define PGN_SPEED 1 
+
+//PGN 65262 / 00FEEE - Engine Temperature
+// Engine Coolant Temperature - byte 1 [1C/bit, -40 C offset]
+#define PGN_TEMP 2
+
+//PGN 65253 / 00FEE5 - Engine Hours, Revolutions
+//Total Engine Hours - bytes 1-4 [0.05 hr/bit]
+#define PGN_HOURS 3
+
+//PGN 65269 / 00FEF5 - Ambient Conditions
+// ?
+#define PGN_AMBIENT 4
+
+//PGN 65270 / 00FEF6 - Inlet/Exhaust Conditions
+//Boost Pressure - byte 2 - [2 kPa/bit]
+#define PGN_EXHAUST 5
+
+//PGN 65257 / 00FEE9 - Fuel Consumption
+//Trip Fuel Consumption - bytes 1-4 [.5L/bit]
+//Total Fuel Consumption - bytes 5-8 [.5L/bit]
+#define PGN_FUEL_ACCUM 6
+
+//PGN 65266 / 00FEF2 - Fuel Economy - 0.1s
+//Fuel Rate - bytes 1,2 [0.05 L/h]
+#define PGN_FUEL_ECON 7
+
+//Tachograph
+//Tach Shaft Speed - bytes 5,6 - [0.125 rpm/bit]
+//Overspeed - byte 2 ?
+#define PGN_TACH 8
+
+//Electronic Engine Controller #1 - Rate: 10 ms
+//Engine Speed - bytes 4,5 - [0.125 rpm/bit]
+#define PGN_EEC1 9
+
 //CANbus 
+//#define CANDIAGNOSTICS 1
 char can_data_file_name[] = "can00001.txt";
 boolean can_init = false; 
+#define OBDDATAINDEXSIZE 100
+char OBDData[OBDDATAINDEXSIZE] = ""; //Serial2's buffer is 128, although our incomming feed should be smaller.
+int OBDDataIndex = 0;
+int lastPGNrequest = 0;
+boolean lastPGNPollSuccess = true;
+int lastReceivedPGNMessage = 0;
+byte lastParsedPGNMessageBytes[8] = {0,0,0,0,0,0,0,0};
+unsigned long lastPGNPollTime = millis();
+unsigned long lastReceivedOBDMsgTime = millis();
+
+//OBD PGN Polling
+#define PGNPollCount 6
+int PGNPollIndex = 0;
+int PGNSeries[PGNPollCount] = {PGN_FUEL_ECON,PGN_SPEED,PGN_FUEL_ACCUM, PGN_EXHAUST, PGN_HOURS,PGN_EEC1}; //
+unsigned long PGNTimeout[PGNPollCount];
+unsigned long PGNLastSampleTime[PGNPollCount] = {millis(), millis(), millis(), millis(), millis(), millis()};
+unsigned long PGNSamplePeriod[PGNPollCount] = {100,1000,1000,1000,1000,1000};
+
+int PGNPollAttempts = 0;
 
 void setup() {
   GCU_Setup(V3,FULLFILL,P777722);
@@ -527,9 +619,9 @@ void setup() {
   LoadPressureSensorCalibration();
   //LoadFuel(); - must save Fuel data first?
   Serial.begin(57600);
-  //InitSD();
+  InitSD();
   LoadServo();
-  InitRS232();
+  InitOBD();
 
   Disp_Init();
   Kpd_Init();
@@ -551,13 +643,13 @@ void setup() {
   //Servo_Reset();
   Timer_Reset();
   
-  InitFUEL_PID();
+  InitMixture();
   InitServos();
   InitGrate();  
   InitDriveReset();
   
   TransitionEngine(ENGINE_ON); //default to engine on. if PCU resets, don't shut a running engine off. in the ENGINE_ON state, should detect and transition out of engine on.
-  //TransitionFUEL_PID(FUEL_P_COMB);
+  //TransitionMixture(FUEL_P_COMB);
   TransitionDisplay(DISPLAY_SPLASH);
   
   TransitionAshOut(ASHOUT_STOPPED);
@@ -579,7 +671,7 @@ void loop() {
       DoPressure();
       DoSerialIn();
       //ReadRS232();
-      DoFUEL_PID();
+      DoMixture();
       //DoGovernor();
       DoAuger();
       DoRotaryValve();
@@ -598,17 +690,18 @@ void loop() {
     }
     DoKeyInput();
     DoHeartBeat(); // blink heartbeat LED
-    
+    ReadOBD();
     if (millis() >= nextTime2) {
       nextTime2 += loopPeriod2;
       DoDisplay();
       if (millis() >= nextTime1) {
         nextTime1 += loopPeriod1;
+        SendOBDPGNRequestSeries();
         if (testing_state == TESTING_OFF) {
           DoFilter();
-          //DoDatalogging();
+          DoDatalogging();
           DoAlarmUpdate();
-          //getFUEL_PID();
+          //getMixture();
         }
         if (millis() >= nextTime0) {
           if (testing_state == TESTING_OFF) {
