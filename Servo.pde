@@ -27,12 +27,12 @@ void WriteServo(){
   if (servo_min != throttle_valve_closed) {
     EEPROM.write(22,throttle_valve_closed);
     servo_min = throttle_valve_closed;
-    Serial.println("#Writing Servo Min position setting to EEPROM");
+    //Message:Serial.println("#Writing Servo Min position setting to EEPROM");
   }
   if (servo_max != throttle_valve_open){
     EEPROM.write(23,throttle_valve_open);
     servo_max = throttle_valve_open;
-    Serial.println("#Writing Servo Max position setting to EEPROM");
+    //Message:Serial.println("#Writing Servo Max position setting to EEPROM");
   }
 }
 
