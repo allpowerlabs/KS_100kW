@@ -50,35 +50,35 @@ void DoSerialIn() {
       break;
     case 's':
       Servo_Calib.write(Servo_Calib.read()+10);
-      Serial.print("#Servo1 (degrees) now:");
-      Serial.println(Servo_Calib.read());
+      //Message:Serial.print("#Servo1 (degrees) now:");
+      //Message:Serial.println(Servo_Calib.read());
       break;
     case 'S':
       Servo_Calib.write(Servo_Calib.read()-10);
-      Serial.print("#Servo1 (degrees) now:");
-      Serial.println(Servo_Calib.read());
+      //Message:Serial.print("#Servo1 (degrees) now:");
+      //Message:Serial.println(Servo_Calib.read());
       break;
 //    case 'l':
 //      lambda_setpoint += 0.01;
-//      Serial.print("#Lambda Setpoint now:");
-//      Serial.println(lambda_setpoint);
+//      //Message:Serial.print("#Lambda Setpoint now:");
+//      //Message:Serial.println(lambda_setpoint);
 //      WriteLambda();
 //      break;
 //    case 'L':
 //      lambda_setpoint -= 0.01;
-//      Serial.print("#Lambda Setpoint now:");
-//      Serial.println(lambda_setpoint);
+//      //Message:Serial.print("#Lambda Setpoint now:");
+//      //Message:Serial.println(lambda_setpoint);
 //      WriteLambda();
 //      break;
     case 't':
       loopPeriod1 = min(loopPeriod1+100,loopPeriod2);
-      Serial.print("#Sample Period now:");
-      Serial.println(loopPeriod1);
+      //Message:Serial.print("#Sample Period now:");
+      //Message:Serial.println(loopPeriod1);
       break;
     case 'T':
       loopPeriod1 = max(loopPeriod1-100,loopPeriod0);
-      Serial.print("#Sample Period now:");
-      Serial.println(loopPeriod1);
+      //Message:Serial.print("#Sample Period now:");
+      //Message:Serial.println(loopPeriod1);
       break;
     case 'g':  
       grate_val = GRATE_SHAKE_CROSS; //set grate val to shake for grate_on_interval
@@ -88,60 +88,57 @@ void DoSerialIn() {
       switch (grateMode) {
       case GRATE_SHAKE_OFF:
         grateMode = GRATE_SHAKE_ON;
-        Serial.println("#Grate Mode: On");
+        //Message:Serial.println("#Grate Mode: On");
         break;
       case GRATE_SHAKE_ON:
         grateMode = GRATE_SHAKE_PRATIO;
-        Serial.println("#Grate Mode: Pressure Ratio");
+        //Message:Serial.println("#Grate Mode: Pressure Ratio");
         break;
       case GRATE_SHAKE_PRATIO:
         grateMode = GRATE_SHAKE_OFF;
-        Serial.println("#Grate Mode: Off");
+        //Message:Serial.println("#Grate Mode: Off");
         break;
       }
       break;  
     case 'm':
       grate_max_interval += 5;
       grate_min_interval = grate_max_interval*0.5;
-      Serial.print("#Grate Max Interval now:");
-      Serial.println(grate_max_interval);
-      Serial.print("#Grate Min Interval now:");
-      Serial.println(grate_min_interval);
+      //Message:Serial.print("#Grate Max Interval now:");
+      //Message:Serial.println(grate_max_interval);
+      //Message:Serial.print("#Grate Min Interval now:");
+      //Message:Serial.println(grate_min_interval);
       break;
     case 'M':
       grate_max_interval -= 5;
       grate_min_interval = grate_max_interval*0.5;
-      Serial.print("#Grate Max Interval now:");
-      Serial.println(grate_max_interval);
-      Serial.print("#Grate Min Interval now:");
-      Serial.println(grate_min_interval);
+      //Message:Serial.print("#Grate Max Interval now:");
+      //Message:Serial.println(grate_max_interval);
+      //Message:Serial.print("#Grate Min Interval now:");
+      //Message:Serial.println(grate_min_interval);
       break;   
-    case 'e':
-      TransitionEngine(ENGINE_GOV_TUNING);
-      break; 
     case 'R': //R0; turns Relay 0 on.
       relayNum = SerialReadInt();
       if (relayNum >= 0 and relayNum < 8){
         relayOn(relayNum);
-        Serial.print("#Setting relay "); Serial.print(relayNum); Serial.println(" on");
+        //Message:Serial.print("#Setting relay "); Serial.print(relayNum); Serial.println(" on");
       }
       break;
     case 'r': //r0; turns Relay 0 off.
       relayNum = SerialReadInt();
       if (relayNum >= 0 and relayNum < 8){
         relayOn(relayNum);
-        Serial.print("#Setting relay "); Serial.print(relayNum); Serial.println(" off");
+        //Message:Serial.print("#Setting relay "); Serial.print(relayNum); Serial.println(" off");
       }
       break;
     case 'C':
 //      logCANbus();
       break;
     case '$':  //Send Canbus PGN request over RS232 Serial2.
-      long pgn;
-      pgn = SerialReadLong();
-      if (pgn > 0){
-        SendPGN(pgn);
-      }
+//      long pgn;
+//      pgn = SerialReadLong();
+//      if (pgn > 0){
+//        SendPGN(pgn);
+//      }
       //ReadRS232();
       break;
     }
