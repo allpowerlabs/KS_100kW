@@ -39,6 +39,16 @@ void DoAlarmUpdate() {
 
 void DoAlarm() {
   alarm = ALARM_NONE;
+  if (millis()-lastReceivedOBDMsgTime>5000) {
+    alarm = ALARM_CAN_ERROR;
+    Serial.print("# ");
+    Serial.println(display_alarm[alarm]);
+  }
+  if (mixture_state == MIXTURE_OVERSPEED) {
+    alarm = ALARM_OVERSPEED;
+    Serial.print("# ");
+    Serial.println(display_alarm[alarm]);
+  }
   if (P_reactorLevel != OFF) { //alarm only if reactor is running
     if (fuel_demand_on_length >= fuel_demand_on_alarm_point) {
       alarm = ALARM_FUEL_DEMAND_ON_LONG;
